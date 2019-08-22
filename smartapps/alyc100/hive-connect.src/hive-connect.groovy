@@ -275,6 +275,7 @@ def selectDevicePAGE() {
             input "selectedBulb", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-bulb.jpg", required:false, title:"Select Hive Light Dimmable Devices \n(${state.hiveBulbDevices.size() ?: 0} found)", multiple:true, options:state.hiveBulbDevices
 			input "selectedTunableBulb", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-tunablebulb.jpg", required:false, title:"Select Hive Light Tuneable Devices \n(${state.hiveTunableBulbDevices.size() ?: 0} found)", multiple:true, options:state.hiveTunableBulbDevices
             input "selectedColourBulb", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-colouredbulb.jpg", required:false, title:"Select Hive Light Colour Devices \n(${state.hiveColourBulb.size() ?: 0} found)", multiple:true, options:state.hiveColourBulb
+			input "selectedTRV", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-activeplug.jpg", required:false, title:"Select Hive Plug Devices \n(${state.hiveActivePlugDevices.size() ?: 0} found)", multiple:true, options:state.hiveActivePlugDevices
             input "selectedActivePlug", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-activeplug.jpg", required:false, title:"Select Hive Plug Devices \n(${state.hiveActivePlugDevices.size() ?: 0} found)", multiple:true, options:state.hiveActivePlugDevices
 		}
   	}
@@ -994,7 +995,23 @@ def updateDevices() {
                         log.debug "Device's name has changed."
                     }
             	}
-          }	 
+		  // Hive TRV
+          }	 else if (device.type == "trvcontrol") {
+				log.debug "Identified: ${device.state.name} Hive TRV"
+            	def value = "${device.state.name} Hive TRV"
+                def key = device.id
+                state.hiveTRVDevices["${key}"] = value
+                //Update names of devices
+            	def childDevice = getChildDevice("${device.id}")
+            	if (childDevice) {
+                	//Update name of device if different.
+                	if(childDevice.name != device.state.name) {
+                        childDevice.name = device.state.name
+                        log.debug "Device's name has changed."
+                    }
+            	}
+		  }
+		  
 	}
   //Remove devices if does not exist on the Hive platform
   getChildDevices().findAll { !selectors.contains("${it.deviceNetworkId}") }.each {
