@@ -28,6 +28,8 @@
  *	18.09.2019
  *	v1.3 Added refresh capabilities into DH instead of relying on parent SA (causes timeouts if too many TRVs)
  *
+ *	8.11.2019
+ *	v1.3.1 fixed typo
  */
  
 preferences 
@@ -582,6 +584,6 @@ def poll() {
 
 def refresh() {
 	log.debug "Executing 'refresh'"
-    unshedule('poll')
+	unschedule('poll')
 	runEvery5Minutes('poll')
 }
