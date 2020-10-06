@@ -71,6 +71,9 @@
  *	v3.3 - Added refresh to child TRV DH to prevent drop-outs (this SmartApp would timeout if too many TVRs).
  * 	Changed logic in this SH to only refresh child devices that haven't checked in for 5 minutes
  *	
+ *  06.10.2020
+ *  v3.4 - Change in Hive authentication URL
+ *
  */
  
 definition(
@@ -105,8 +108,8 @@ def startPage() {
 	if (parent) {
 		atomicState?.isParent = false
 		tmaConfigurePAGE()
-		atomicState?.isParent = true
 	} else {
+		atomicState?.isParent = true
 		mainPage()
 	}
 }
@@ -150,7 +153,7 @@ def mainPage() {
 
 def headerSECTION() {
 	return paragraph (image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/10457773_334250273417145_3395772416845089626_n.png",
-                  "Hive (Connect)\nVersion: 3.1\nDate: 31082019")
+                  "Hive (Connect)\nVersion: 3.4\nDate: 06102020")
 }
 
 def stateTokenPresent() {
@@ -229,7 +232,6 @@ def getDevicesSelectedString() {
 		if (null != state.hiveTRVDevices)
             listString += "${state.hiveTRVDevices[childDevice]}\n"
 	}
-	
   
   	// Returns the completed list, and trims the last carriage return
 	return listString.trim()
@@ -293,7 +295,7 @@ def selectDevicePAGE() {
             input "selectedBulb", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-bulb.jpg", required:false, title:"Select Hive Light Dimmable Devices \n(${state.hiveBulbDevices.size() ?: 0} found)", multiple:true, options:state.hiveBulbDevices
 			input "selectedTunableBulb", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-tunablebulb.jpg", required:false, title:"Select Hive Light Tuneable Devices \n(${state.hiveTunableBulbDevices.size() ?: 0} found)", multiple:true, options:state.hiveTunableBulbDevices
             input "selectedColourBulb", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-colouredbulb.jpg", required:false, title:"Select Hive Light Colour Devices \n(${state.hiveColourBulb.size() ?: 0} found)", multiple:true, options:state.hiveColourBulb
-			input "selectedActivePlug", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-activeplug.jpg", required:false, title:"Select Hive Plug Devices \n(${state.hiveActivePlugDevices.size() ?: 0} found)", multiple:true, options:state.hiveActivePlugDevices
+            input "selectedActivePlug", "enum", image: "https://raw.githubusercontent.com/alyc100/SmartThingsPublic/master/smartapps/alyc100/hive-activeplug.jpg", required:false, title:"Select Hive Plug Devices \n(${state.hiveActivePlugDevices.size() ?: 0} found)", multiple:true, options:state.hiveActivePlugDevices
             input "selectedTRV", "enum", image: "https://raw.githubusercontent.com/Bibbleq/SmartThingsPublic-1/master/smartapps/alyc100/Hive-TRV.jpg", required:false, title:"Select Hive TRV Devices \n(${state.hiveTRVDevices.size() ?: 0} found)", multiple:true, options:state.hiveTRVDevices
 		}
   	}
@@ -538,7 +540,7 @@ def initialize() {
 		if(selectedTRV) {
 			addTRV()
 		}
- 	 	runIn(1, 'refreshDevices') // Asynchronously refresh devices so we don't block
+ 	 	runIn(10, 'refreshDevices') // Asynchronously refresh devices so we don't block
 
   	//subscribe to events for notifications if activated
   	if (preferencesSelected() == "complete") {
@@ -606,7 +608,7 @@ def modeHandler(evt) {
 	def msg
     	if (evt.value == "heat") {
     		msg = "${evt.displayName} is set to Manual"
-                if (settings.sendSchedule) generateNotification(msg)
+        	if (settings.sendSchedule) generateNotification(msg)
     	}
 		else if (evt.value == "off") {
     		msg = "${evt.displayName} is turned Off"
@@ -924,8 +926,7 @@ def updateDevices() {
   def selectors = []
 	devices.each { device ->
         selectors.add("${device.id}")
-        //Heating
-        if (device.type == "heating") {
+		if (device.type == "heating") {
             //Heating Control
             log.debug "Identified: ${device.state.name} Hive Heating"
             def value = "${device.state.name} Hive Heating"
@@ -1289,11 +1290,7 @@ def getDeviceTRVStatus(id) {
 	def DeviceTRVStatus = []
     def retVal = []
     def TimeNow = now()
-    def CacheExpire
-
-	if (null != state.LastTRVCheck){
-		CacheExpire = state.LastTRVCheck + 180000	
-	}
+    def CacheExpire = state.LastTRVCheck + 60000
     
     //log.debug "Last check: ${state.LastTRVCheck}, cache expires: ${CacheExpire}"
     
@@ -1328,7 +1325,6 @@ def getDeviceInfo(id) {
 	def resp = apiGET("/devices/${id}")
 	if (resp.status == 200) {
     	retVal = resp.data
-
 	} else {
 		log.error("Non-200 from device info call. ${resp.status} ${resp.data}")
 	}
@@ -1346,7 +1342,6 @@ def getDeviceID(ProductID) {
                 retVal = resp.data[i].id
             }
         }
-		
 	} else {
 		log.error("Non-200 from device info call. ${resp.status} ${resp.data}")
 	}
@@ -1367,7 +1362,6 @@ def apiGET(path, body = [:]) {
 			return response
 		}
 	} catch (groovyx.net.http.HttpResponseException e) {
-		log.debug "error in GET"
 		logResponse(e.response)
 		return e.response
 	}
@@ -1383,11 +1377,9 @@ def apiPOST(path, body = [:]) {
 
 		httpPostJson(uri: apiBeekeeperUKURL(path), body: body, headers: apiRequestHeaders() ) {response ->
 			logResponse(response)
-			log.debug "1"
 			return response
 		}
 	} catch (groovyx.net.http.HttpResponseException e) {
-		log.debug "2"
 		logResponse(e.response)
 		return e.response
 	}
@@ -1396,7 +1388,7 @@ def apiPOST(path, body = [:]) {
 def getBeekeeperAccessToken() {
 	try {
     	def params = [
-			uri: apiBeekeeperURL('/global/login'),
+			uri: apiBeekeeperURL('/cognito/login'),
         	contentType: 'application/json',
         	headers: [
               'Content-Type': 'application/json'
